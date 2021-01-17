@@ -1,0 +1,20 @@
+api_login_check:
+    path: /api/login_check
+
+logout:
+    path: /api/logout
+    controller: App\Controller\ProfileController::logout
+
+api:
+    prefix: /api
+    resource: '../src/Controller'
+
+pageNotFound:
+    path:  /{path}
+    defaults:
+      {
+        _controller: App\Controller\PageNotFoundController::pageNotFoundAction,
+        path: ''
+      }
+    requirements:
+        path: .*
