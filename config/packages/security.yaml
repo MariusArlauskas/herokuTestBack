@@ -47,6 +47,8 @@ security:
 
         main:
             anonymous: true
+            remember_me:
+                samesite: 'strict'
 
 
 
