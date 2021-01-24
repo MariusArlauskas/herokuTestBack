@@ -8,7 +8,7 @@ framework:
     session:
         handler_id: null
         cookie_secure: auto
-        cookie_samesite: null
+        cookie_samesite: 'none'
 
     #esi: true
     #fragments: true
