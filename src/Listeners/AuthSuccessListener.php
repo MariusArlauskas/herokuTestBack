@@ -30,7 +30,7 @@ class AuthSuccessListener {
             new Cookie('BEARER', $token,
                 (new \DateTime())
                     ->add(new \DateInterval('PT' . $this->tokenTtl . 'S'))
-                ), '/', null, $this->secure, true, false, 'none'
+                ), '/', null, $this->secure, true, false, Cookie::SAMESITE_NONE
         );
     }
 }
