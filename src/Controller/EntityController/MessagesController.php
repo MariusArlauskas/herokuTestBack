@@ -165,17 +165,17 @@ class MessagesController extends AbstractController
 
 		foreach ($childMessages as $key => $message) {
 			if (empty($message['userProfilePicture'])) {
-				$childMessages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
+				$childMessages[$key]['userProfilePicture'] = 'https://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
 			} else {
-				$childMessages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$message['userProfilePicture'];
+				$childMessages[$key]['userProfilePicture'] = 'https://'.$_SERVER['HTTP_HOST'].'/Files/'.$message['userProfilePicture'];
 			}
 		}
 		foreach ($messages as $key => $message) {
 			$messages[$key]['children'] = [];
 			if (empty($message['userProfilePicture'])) {
-				$messages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
+				$messages[$key]['userProfilePicture'] = 'https://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
 			} else {
-				$messages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$message['userProfilePicture'];
+				$messages[$key]['userProfilePicture'] = 'https://'.$_SERVER['HTTP_HOST'].'/Files/'.$message['userProfilePicture'];
 			}
 
 			if (!empty($childMessages)) {

@@ -307,7 +307,7 @@ class MoviesRepository extends ServiceEntityRepository
 
 		$sql = '
 			SELECT
-				m.id,
+				MAX(m.id),
 				m.title,
 				m.author,
 				m.release_date AS releaseDate,
