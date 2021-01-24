@@ -34,7 +34,7 @@ class AuthSuccessListener {
 			'/',
 			null,
 			$this->secure,
-			false,
+			true,
 			false,
 			Cookie::SAMESITE_NONE
 		);
