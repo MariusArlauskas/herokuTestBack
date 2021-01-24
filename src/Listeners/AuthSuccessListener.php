@@ -26,11 +26,19 @@ class AuthSuccessListener {
         unset($data['refresh_token']);
         $event->setData($data);
 
-        $response->headers->setCookie(
-            new Cookie('BEARER', $token,
-                (new \DateTime())
-                    ->add(new \DateInterval('PT' . $this->tokenTtl . 'S'))
-                ), '/', null, $this->secure, true, false, Cookie::SAMESITE_NONE
-        );
+        $expire = (new \DateTime())->add(new \DateInterval('PT' . $this->tokenTtl . 'S'));
+        $bearer = Cookie::create(
+        	'BEARER',
+			$token,
+			$expire,
+			'/',
+			null,
+			$this->secure,
+			false,
+			false,
+			Cookie::SAMESITE_NONE
+		);
+
+        $response->headers->setCookie($bearer);
     }
 }
