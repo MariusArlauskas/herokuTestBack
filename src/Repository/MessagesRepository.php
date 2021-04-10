@@ -65,7 +65,7 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAll();
+		return $stmt->fetchAllNumeric();
 	}
 
 	/**
@@ -108,7 +108,7 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAll();
+		return $stmt->fetchAllNumeric();
 	}
 
 	/**
@@ -144,7 +144,7 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAll();
+		return $stmt->fetchAllNumeric();
 	}
 
 	/**
@@ -180,6 +180,6 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAll();
+		return $stmt->fetchAllNumeric();
 	}
 }

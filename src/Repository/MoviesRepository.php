@@ -36,7 +36,7 @@ class MoviesRepository extends ServiceEntityRepository
 			->getConnection();
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
-		return $stmt->fetchAll();
+		return $stmt->fetchAllNumeric();
 	}
 
 	/**
@@ -133,7 +133,7 @@ class MoviesRepository extends ServiceEntityRepository
 		$stmt->execute();
 
 		$ojbArr = [];
-		foreach ($stmt->fetchAll() as $movie) {
+		foreach ($stmt->fetchAllNumeric() as $movie) {
 			$ojbArr[] = new Movies($movie);
 		}
 
@@ -186,7 +186,7 @@ class MoviesRepository extends ServiceEntityRepository
 		$stmt->execute();
 
 		$ojbArr = [];
-		foreach ($stmt->fetchAll() as $movie) {
+		foreach ($stmt->fetchAllNumeric() as $movie) {
 			$ojbArr[] = new Movies($movie);
 		}
 
@@ -262,7 +262,7 @@ class MoviesRepository extends ServiceEntityRepository
 		$stmt->execute();
 
 		$ojbArr = [];
-		foreach ($stmt->fetchAll() as $movie) {
+		foreach ($stmt->fetchAllNumeric() as $movie) {
 			$ojbArr[] = new Movies($movie);
 		}
 
@@ -341,7 +341,7 @@ class MoviesRepository extends ServiceEntityRepository
 		$stmt->execute();
 
 		$ojbArr = [];
-		foreach ($stmt->fetchAll() as $movie) {
+		foreach ($stmt->fetchAllNumeric() as $movie) {
 			$ojbArr[] = new Movies($movie);
 		}
 
