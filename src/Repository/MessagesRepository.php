@@ -23,14 +23,14 @@ class MessagesRepository extends ServiceEntityRepository
 	/**
 	 * @param int $limit
 	 * @param int $offset
-	 * @param int $user
+	 * @param array $users
 	 * @return array
 	 * @throws DBALException
 	 */
-	public function findMessagesSortedByDate($limit, $offset, $user = 0) {
+	public function findMessagesSortedByDate($limit, $offset, $users = 0) {
 		$and = '';
-		if (!empty($user)) {
-			$and = 'AND u.id = '.$user;
+		if (!empty($users)) {
+			$and = 'AND u.id IN ('.implode(',', $users).')';
 		}
 		$sql = '
 			SELECT
@@ -65,7 +65,7 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAllNumeric();
+		return $stmt->fetchAllAssociative();
 	}
 
 	/**
@@ -108,7 +108,7 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAllNumeric();
+		return $stmt->fetchAllAssociative();
 	}
 
 	/**
@@ -144,7 +144,7 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAllNumeric();
+		return $stmt->fetchAllAssociative();
 	}
 
 	/**
@@ -180,6 +180,6 @@ class MessagesRepository extends ServiceEntityRepository
 		$stmt = $conn->prepare($sql);
 		$stmt->execute();
 
-		return $stmt->fetchAllNumeric();
+		return $stmt->fetchAllAssociative();
 	}
 }

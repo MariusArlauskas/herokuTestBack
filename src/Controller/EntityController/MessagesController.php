@@ -5,6 +5,7 @@ namespace App\Controller\EntityController;
 use App\Controller\InitSerializer;
 use App\Entity\Messages;
 use App\Entity\Users;
+use App\Entity\UsersFollowers;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -134,23 +135,35 @@ class MessagesController extends AbstractController
 	}
 
 	/**
-	 * @Route("/{elementNumber}/{lastId}", name="messages_get", methods={"GET"}, requirements={"pageNumber"="\d+", "lastId"="\d+"})
+	 * @Route("/{elementNumber}/{lastId}/{followingOnly}", name="messages_get", methods={"GET"}, requirements={"pageNumber"="\d+", "lastId"="\d+"})
 	 * @param int $elementNumber
 	 * @param int $lastId
 	 * @return JsonResponse|Response
 	 */
-	public function getAllAction($elementNumber, $lastId){
+	public function getAllAction($elementNumber, $lastId, $followingOnly = false){
 		$em = $this->getDoctrine()->getManager();
 		$repMessages = $em->getRepository(Messages::class);
 
+		$followingOnly = $followingOnly == 'true';	// apsauga nuo requestu
+		$followingArr = [];
+		if ($followingOnly) {
+			$followsRepository = $this->getDoctrine()->getRepository(UsersFollowers::class);
+			$following = $followsRepository->findBy(['userId' => $this->getUser()->getId()]);
+			if (!empty($following)) {
+				foreach ($following as $item) {
+					$followingArr[] = $item->getFollowedUserId();
+				}
+			}
+		}
+
 		if ($elementNumber == 0) {
-			$messages = $repMessages->findMessagesSortedByDate(1, 0);
+			$messages = $repMessages->findMessagesSortedByDate(1, 0, $followingArr);
 			if ($messages[0]['id'] == $lastId) {
 				return $this->serializer->response([], 200);
 			}
 		} else {
 			$elementNumber -= 1;
-			$messages = $repMessages->findMessagesSortedByDate(10, $elementNumber );
+			$messages = $repMessages->findMessagesSortedByDate(10, $elementNumber, $followingArr);
 		}
 
 		if (empty($messages)) {
@@ -194,7 +207,7 @@ class MessagesController extends AbstractController
 		$em = $this->getDoctrine()->getManager();
 		$repMessages = $em->getRepository(Messages::class);
 
-		$messages = $repMessages->findMessagesSortedByDate(10, $elementNumber, $userId );
+		$messages = $repMessages->findMessagesSortedByDate(10, $elementNumber, [$userId] );
 
 		if (empty($messages)) {
 			return $this->serializer->response([], 200);

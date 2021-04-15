@@ -5,6 +5,7 @@ namespace App\Controller\EntityController;
 
 use App\Controller\InitSerializer;
 use App\Entity\Users;
+use App\Entity\UsersFollowers;
 use App\Entity\UsersMovies;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -210,7 +211,7 @@ class UsersController extends AbstractController
 	 * @param int $id
 	 * @return JsonResponse
 	 */
-	public function getOneAction($id)
+	public function getOneAction($id, $filter = true)
 	{
 		// Finding user
 		$repository = $this->getDoctrine()->getRepository(Users::class);
@@ -242,9 +243,32 @@ class UsersController extends AbstractController
 			$userArray['profilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$userArray['profilePicture'];
 		}
 
+		$followsRepository = $this->getDoctrine()->getRepository(UsersFollowers::class);
+		$following = $followsRepository->findBy(['userId' => $id]);
+		if (!empty($following)) {
+			$followingArr = [];
+			foreach ($following as $item) {
+				$followingArr[] = $item->getFollowedUserId();
+			}
+			$userArray['followingUsers'] = $followingArr;
+		}
+		$followers = $followsRepository->findBy(['followedUserId' => $id]);
+		if (!empty($followers)) {
+			$followersArr = [];
+			foreach ($followers as $item) {
+				$followersArr[] = $item->getUserId();
+			}
+			$userArray['followers'] = $followersArr;
+		}
+
 		// Unset important or unnecessary values
 		unset($userArray['password']);
 		unset($userArray['roles']);
+		if ($filter) {
+			unset($userArray['role']);
+			unset($userArray['chatBannedUntil']);
+			unset($userArray['email']);
+		}
 
 		return $this->serializer->response($userArray, 200, [], false, true);
 	}
@@ -395,6 +419,45 @@ class UsersController extends AbstractController
 	}
 
 	/**
+	 * @Route("/{userId}/follow/{followedUserId}", name="user_follow", methods={"POST"}, requirements={"userId"="\d+", "followedUserId"="\d+"})
+	 * @param int $userId
+	 * @param int $followedUserId
+	 * @return JsonResponse
+	 */
+	public function addUserFollow($userId, $followedUserId) {
+		if (!$this->isGranted("ROLE_USER") && !$this->isGranted("ROLE_ADMIN")) {
+			throw new HttpException(Response::HTTP_FORBIDDEN, "Access denied!!");
+		}
+
+		$em = $this->getDoctrine()->getManager();
+		$repository = $em->getRepository(Users::class);
+		$user = $repository->findOneBy(['id' => $userId]);
+		if (empty($user)) {
+			return $this->serializer->response('User not found!', Response::HTTP_NOT_FOUND);
+		}
+		$followedUser = $repository->findOneBy(['id' => $followedUserId]);
+		if (empty($followedUser)) {
+			return $this->serializer->response('Followed user not found!', Response::HTTP_NOT_FOUND);
+		}
+		$followRepository = $em->getRepository(UsersFollowers::class);
+		$record = $followRepository->findOneBy(['userId' => $userId, 'followedUserId' => $followedUserId]);
+		if (empty($record)) {
+			$record = new UsersFollowers();
+			$record->setUserId($userId);
+			$record->setFollowedUserId($followedUserId);
+			$em->persist($record);
+			$msg = 'User '.$userId.' followed user '.$followedUserId;
+		} else {
+			$em->remove($record);
+			$msg = 'User '.$userId.' no longer follow user '.$followedUserId;
+		}
+
+		$em->flush();
+
+		return $this->serializer->response($msg);
+	}
+
+	/**
 	 * @Route("/{id}/movies", name="user_movies_list", methods={"GET"}, requirements={"id"="\d+"})
 	 * @param $id
 	 * @return Response
@@ -420,5 +483,71 @@ class UsersController extends AbstractController
 			'userId' => $id,
 			'elementNumber' => $elementNumber,
 		]);
+	}
+
+	/**
+	 * @return JsonResponse
+	 */
+	public function getUsersFollows($id)
+	{
+		$id = intval($id);
+		if (empty($id)) {
+			return $this->serializer->response('User ID incorrect!', Response::HTTP_BAD_REQUEST);
+		}
+		// Finding users
+		$repository = $this->getDoctrine()->getRepository(UsersFollowers::class);
+		$follows = $repository->findBy(['userId' => $id]);
+		if (empty($follows)) {
+			return $this->serializer->response([], 200, [], false, true);
+		}
+
+		$usersIds = [];
+		foreach ($follows as $followRecord) {
+			$usersIds[] = $followRecord->getFollowedUserId();
+		}
+		$users = $this->getMainUsersDataByIds($usersIds);
+
+		return $this->serializer->response($users, 200, [], false, true);
+	}
+
+	/**
+	 * @return JsonResponse
+	 */
+	public function getUsersFollowers($id)
+	{
+		$id = intval($id);
+		if (empty($id)) {
+			return $this->serializer->response('User ID incorrect!', Response::HTTP_BAD_REQUEST);
+		}
+		// Finding users
+		$repository = $this->getDoctrine()->getRepository(UsersFollowers::class);
+		$followers = $repository->findBy(['followedUserId' => $id]);
+		if (empty($followers)) {
+			return $this->serializer->response([], 200, [], false, true);
+		}
+
+		$usersIds = [];
+		foreach ($followers as $followRecord) {
+			$usersIds[] = $followRecord->getUserId();
+		}
+		$users = $this->getMainUsersDataByIds($usersIds);
+
+		return $this->serializer->response($users, 200, [], false, true);
+	}
+
+	/**
+	 * @param array $usersIds
+	 */
+	protected function getMainUsersDataByIds($usersIds) {
+		$usersRepository = $this->getDoctrine()->getRepository(Users::class);
+		$users = $usersRepository->findAllMainDataByIds($usersIds);
+		foreach ($users as &$user) {
+			if (empty($user['profilePicture'])) {
+				$user['profilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
+			} else {
+				$user['profilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$user['profilePicture'];
+			}
+		}
+		return $users;
 	}
 }

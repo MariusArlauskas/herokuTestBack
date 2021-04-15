@@ -41,17 +41,18 @@ class ProfileController extends AbstractController
 		}
         $userId = $this->getUser()->getId();
 
-        return $this->getAction($userId);
+        return $this->getAction($userId, false);
     }
 
 	/**
 	 * @Route("/{id}", name="user_profile_data", methods={"GET"})
 	 * @return Response
 	 */
-	public function getAction($id)
+	public function getAction($id, $filter = true)
 	{
 		$result = $this->forward('App\Controller\EntityController\UsersController::getOneAction', [
 			'id' => $id,
+			'filter' => $filter,
 		]);
 
 		return $result;
@@ -71,6 +72,32 @@ class ProfileController extends AbstractController
 			'id' => $this->getUser()->getId(),
 			'request' => $request,
 		]);
+	}
+
+	/**
+	 * @Route("/{id}/follows", name="user_profile_follows", methods={"GET"})
+	 * @return Response
+	 */
+	public function getFollowsAction($id)
+	{
+		$result = $this->forward('App\Controller\EntityController\UsersController::getUsersFollows', [
+			'id' => $id,
+		]);
+
+		return $result;
+	}
+
+	/**
+	 * @Route("/{id}/followers", name="user_profile_followers", methods={"GET"})
+	 * @return Response
+	 */
+	public function getFollowersAction($id)
+	{
+		$result = $this->forward('App\Controller\EntityController\UsersController::getUsersFollowers', [
+			'id' => $id,
+		]);
+
+		return $result;
 	}
 
     /**

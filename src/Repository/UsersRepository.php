@@ -35,4 +35,26 @@ class UsersRepository extends ServiceEntityRepository implements PasswordUpgrade
         $this->_em->persist($user);
         $this->_em->flush();
     }
+
+	/**	Main users data needed for showing in users list
+	 * @param array $ids
+	 */
+    public function findAllMainDataByIds($ids) {
+		$sql = '
+			SELECT
+				id,
+				name,
+			    profile_picture as profilePicture
+			FROM
+				users
+			WHERE 
+				id IN ('.implode(',', $ids).')
+		';
+
+		$conn = $this->getEntityManager()
+			->getConnection();
+		$stmt = $conn->prepare($sql);
+		$stmt->execute();
+		return $stmt->fetchAllAssociative();
+	}
 }
