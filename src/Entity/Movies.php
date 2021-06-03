@@ -92,6 +92,11 @@ class Movies
 	 */
 	private $nowPlaying;
 
+	/**
+	 * @ORM\Column(type="blob", nullable=true)
+	 */
+	private $cast;
+
     public function __construct($arr = [])
     {
     	if (!empty($arr)) {
@@ -324,6 +329,18 @@ class Movies
 	public function setNowPlaying(?int $nowPlaying): self
 	{
 		$this->nowPlaying = $nowPlaying;
+
+		return $this;
+	}
+
+	public function getCast(): ?array
+	{
+		return $this->cast;
+	}
+
+	public function setCast(?array $cast): self
+	{
+		$this->cast = $cast;
 
 		return $this;
 	}

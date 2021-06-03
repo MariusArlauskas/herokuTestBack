@@ -76,7 +76,7 @@ class MessagesRepositoryTest extends KernelTestCase {
 	{
 		$results = $this->entityManager
 			->getRepository(Messages::class)
-			->findMovieMessagesCommentsSortedByDate([30])
+			->findMessagesCommentsSortedByDate([30])
 		;
 
 		$this->assertNotEmpty($results);

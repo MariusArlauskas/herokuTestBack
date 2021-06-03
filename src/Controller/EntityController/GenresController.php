@@ -9,7 +9,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * Class GenresController
- * @package App\Controller
+ * @package App\Controller\EntityController
  * @Route("/genres")
  */
 class GenresController extends AbstractController

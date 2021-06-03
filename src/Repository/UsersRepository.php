@@ -57,4 +57,27 @@ class UsersRepository extends ServiceEntityRepository implements PasswordUpgrade
 		$stmt->execute();
 		return $stmt->fetchAllAssociative();
 	}
+
+	public function searchUser($name, $limit, $offset) {
+		$sql = '
+			SELECT
+				id,
+				name,
+			    profile_picture as profilePicture
+			FROM
+				users
+			WHERE name LIKE :title
+			ORDER BY id DESC				
+			LIMIT '.(int)$limit.'  OFFSET '.(int)$offset.'
+		';
+
+		$conn = $this->getEntityManager()
+			->getConnection();
+		$stmt = $conn->prepare($sql);
+		$name = '%'.$name.'%';
+		$stmt->bindParam(':title', $name);
+
+		$stmt->execute();
+		return $stmt->fetchAllAssociative();
+	}
 }

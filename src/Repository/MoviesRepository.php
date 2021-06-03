@@ -20,7 +20,47 @@ class MoviesRepository extends ServiceEntityRepository
         parent::__construct($registry, Movies::class);
     }
 
+	public function findOneByMovieId($id) {
+		/**
+		 * @var Movies $movie
+		 */
+		$movie = parent::findOneBy(['movieId' => intval($id)]);
+		if (empty($movie)) {
+			return false;
+		}
+
+		$sql = '
+			SELECT
+				UNCOMPRESS(cast) as cast
+			FROM
+				movies
+			WHERE 
+				movie_id = '.intval($id).'
+		';
+
+		$conn = $this->getEntityManager()
+			->getConnection();
+		$stmt = $conn->prepare($sql);
+		$stmt->execute();
+		$cast = $stmt->fetchAllAssociative();
+		if (empty($cast)) {
+			return ['err'];
+		}
+		$movie->setCast(json_decode($cast[0]['cast'], true));
+		return $movie;
+	}
+
     public function getMaxNumberByType($apiId, $type) {
+		$allowedTypes = [
+			'mostPopular',
+			'topRated',
+			'upcoming',
+			'latest',
+			'nowPlaying',
+		];
+    	if (!in_array($type, $allowedTypes)) {
+    		return false;
+		}
     	$oType = $type;
 		$type = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $type));		// oneTwo to one_two
 		$sql = '
@@ -47,9 +87,20 @@ class MoviesRepository extends ServiceEntityRepository
 	 * @param int $offset
 	 * @param array $filter
 	 * @return array
-	 * @throws DBALException
+	 * @throws \Doctrine\DBAL\Driver\Exception
+	 * @throws \Doctrine\DBAL\Exception
 	 */
     public function findByApiIdAndTypeWithUserStatuses($apiId, $userId, $type, $limit, $offset, $filter) {
+		$allowedTypes = [
+			'mostPopular',
+			'topRated',
+			'upcoming',
+			'latest',
+			'nowPlaying',
+		];
+		if (!in_array($type, $allowedTypes)) {
+			return [];
+		}
 		$type = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $type));		// oneTwo to one_two
 		$setOffset = '';
 		if (!empty($filter)) {
@@ -88,7 +139,7 @@ class MoviesRepository extends ServiceEntityRepository
 		if (empty($andWhere)) {
 			$andWhere = 'AND m.'.$type.' >= '.(int)$offset.' AND m.'.$type.' <= ('.(int)$offset.' + 20)';
 		} else {
-			$setOffset = 'OFFSET '.$offset;
+			$setOffset = 'OFFSET '.(int)$offset;
 			$andWhere = 'AND m.'.$type.' > 0'.$andWhere;
 		}
 
@@ -203,6 +254,16 @@ class MoviesRepository extends ServiceEntityRepository
 	 * @throws DBALException
 	 */
 	public function findByApi($apiId, $type, $limit, $offset, $filter) {
+		$allowedTypes = [
+			'mostPopular',
+			'topRated',
+			'upcoming',
+			'latest',
+			'nowPlaying',
+		];
+		if (!in_array($type, $allowedTypes)) {
+			return [];
+		}
 		$type = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $type));		// oneTwo to one_two
 		$setOffset = '';
 		if (!empty($filter)) {
@@ -229,7 +290,7 @@ class MoviesRepository extends ServiceEntityRepository
 		if (empty($andWhere)) {
 			$andWhere = 'AND m.'.$type.' >= '.(int)$offset.' AND m.'.$type.' <= ('.(int)$offset.' + 20)';
 		} else {
-			$setOffset = 'OFFSET '.$offset;
+			$setOffset = 'OFFSET '.(int)$offset;
 			$andWhere = 'AND m.'.$type.' > 0'.$andWhere;
 		}
 
@@ -346,5 +407,60 @@ class MoviesRepository extends ServiceEntityRepository
 		}
 
 		return $ojbArr;
+	}
+
+	/**
+	 * @param int $movieId
+	 * @return false|array	['voteCount' => .., 'voteAverage' => ..]
+	 * @throws \Doctrine\DBAL\Driver\Exception
+	 * @throws \Doctrine\DBAL\Exception
+	 */
+	public function getScoreByMovieId($movieId) {
+		$sql = '
+			SELECT
+				COUNT(user_rating) as voteCount,
+			    AVG(user_rating) as voteAverage
+			FROM
+				users_movies
+			WHERE 
+				movie_id = '.intval($movieId).'
+			GROUP BY movie_id
+		';
+
+		$conn = $this->getEntityManager()
+			->getConnection();
+		$stmt = $conn->prepare($sql);
+		$stmt->execute();
+		return $stmt->fetchAssociative();
+	}
+
+	/**
+	 * @param int $id
+	 * @param array $cast
+	 * @return Movies|false
+	 * @throws \Doctrine\DBAL\Driver\Exception
+	 * @throws \Doctrine\DBAL\Exception
+	 */
+	public function saveMovieCast($id, $cast) {
+		/**
+		 * @var Movies $movie
+		 */
+		$movie = parent::findOneBy(['movieId' => $id]);
+		if (empty($movie)) {
+			return false;
+		}
+
+		$sql = '
+			UPDATE movies
+			SET
+				cast = COMPRESS(\''.json_encode($cast, JSON_HEX_QUOT   | JSON_HEX_APOS).'\')
+			WHERE 
+				movie_id = '.intval($id).'
+		';
+
+		$conn = $this->getEntityManager()
+			->getConnection();
+		$stmt = $conn->prepare($sql);
+		return $stmt->execute();
 	}
 }

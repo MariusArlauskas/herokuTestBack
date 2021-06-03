@@ -3,6 +3,7 @@
 namespace App\Controller\EntityController;
 
 use App\Controller\InitSerializer;
+use App\Entity\Forum;
 use App\Entity\Messages;
 use App\Entity\Users;
 use App\Entity\UsersFollowers;
@@ -16,7 +17,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * Class MessagesController
- * @package App\Controller
+ * @package App\Controller\EntityController
  * @Route("/messages")
  */
 class MessagesController extends AbstractController
@@ -62,14 +63,17 @@ class MessagesController extends AbstractController
 
 		// Not required fields
 		if (!empty($parametersAsArray['parentId'])) {
-			$parentId = htmlspecialchars(trim($parametersAsArray['parentId']));
+			$parentId = intval($parametersAsArray['parentId']);
 		}
 		if (!empty($parametersAsArray['movieId'])) {
-			$movieId = htmlspecialchars(trim($parametersAsArray['movieId']));
+			$movieId = intval($parametersAsArray['movieId']);
+		}
+		if (!empty($parametersAsArray['forumId'])) {
+			$forumId = intval($parametersAsArray['forumId']);
 		}
 
 		if (!empty($parametersAsArray['id'])) {
-			$id = htmlspecialchars(trim($parametersAsArray['id']));
+			$id = intval($parametersAsArray['id']);
 		}
 		if (!empty($id)) {	// if update
 			$em = $this->getDoctrine()->getManager();
@@ -87,7 +91,7 @@ class MessagesController extends AbstractController
 			return $this->serializer->response($message, 200, [], false, false, true);
 		}
 
-		// Creating user object
+		// Creating object
 		$message = new Messages();
 		$message->setUserId($userId);
 		$message->setMessage($messageText);
@@ -97,6 +101,9 @@ class MessagesController extends AbstractController
 		}
 		if (!empty($movieId)) {
 			$message->setMovieId($movieId);
+		}
+		if (!empty($forumId)) {
+			$message->setForumId($forumId);
 		}
 
 		// Get the Doctrine service and manager
@@ -126,6 +133,9 @@ class MessagesController extends AbstractController
 		$repMessages = $em->getRepository(Messages::class);
 
 		$message = $repMessages->find($id);
+		if (empty($message)) {
+			return $this->serializer->response('Message not found', Response::HTTP_NOT_FOUND);
+		}
 		$em->remove($message);
 
 		// Save
@@ -135,7 +145,7 @@ class MessagesController extends AbstractController
 	}
 
 	/**
-	 * @Route("/{elementNumber}/{lastId}/{followingOnly}", name="messages_get", methods={"GET"}, requirements={"pageNumber"="\d+", "lastId"="\d+"})
+	 * @Route("/{elementNumber}/{lastId}/{followingOnly}", name="messages_get", methods={"GET"}, requirements={"elementNumber"="\d+", "lastId"="\d+"})
 	 * @param int $elementNumber
 	 * @param int $lastId
 	 * @return JsonResponse|Response
@@ -144,7 +154,7 @@ class MessagesController extends AbstractController
 		$em = $this->getDoctrine()->getManager();
 		$repMessages = $em->getRepository(Messages::class);
 
-		$followingOnly = $followingOnly == 'true';	// apsauga nuo requestu
+		$followingOnly = $followingOnly == 'true';
 		$followingArr = [];
 		if ($followingOnly) {
 			$followsRepository = $this->getDoctrine()->getRepository(UsersFollowers::class);
@@ -207,7 +217,7 @@ class MessagesController extends AbstractController
 		$em = $this->getDoctrine()->getManager();
 		$repMessages = $em->getRepository(Messages::class);
 
-		$messages = $repMessages->findMessagesSortedByDate(10, $elementNumber, [$userId] );
+		$messages = $repMessages->findMessagesSortedByDate(10, $elementNumber, [intval($userId)] );
 
 		if (empty($messages)) {
 			return $this->serializer->response([], 200);
@@ -260,7 +270,7 @@ class MessagesController extends AbstractController
 		foreach ($messages as $message) {
 			$childMessages[] = $message['id'];		// First put in parents ids for search
 		}
-		$childMessages = $repMessages->findMovieMessagesCommentsSortedByDate($childMessages);
+		$childMessages = $repMessages->findMessagesCommentsSortedByDate($childMessages);
 
 		foreach ($childMessages as $key => $message) {
 			if (empty($message['userProfilePicture'])) {
@@ -287,5 +297,84 @@ class MessagesController extends AbstractController
 		}
 
 		return $this->serializer->response($messages, 200, [], false, true);
+	}
+
+	/**
+	 * @param $forumId
+	 * @param $pageNr
+	 * @return Response
+	 * @throws \Doctrine\DBAL\DBALException
+	 */
+	public function getForumThreadMessages($forumId, $pageNr){
+		$em = $this->getDoctrine()->getManager();
+		$repMessages = $em->getRepository(Messages::class);
+		$pageSize = 20;
+		$result = [];
+		if ($pageNr == 0) {
+			$repForum = $em->getRepository(Forum::class);
+			$forum = $repForum->find($forumId);
+			$result['forum'] = $forum->toArray();
+
+			$forumUser = $this->getMainUsersDataByIds([$forum->getUserId()]);
+			$result['forum']['userName'] = $forumUser[0]['name'];
+			$result['forum']['profilePicture'] = $forumUser[0]['profilePicture'];
+		}
+
+		$messages = $repMessages->findForumMessagesSortedByDate($pageSize, $pageNr * $pageSize, $forumId );
+
+		if (empty($messages)) {
+			$result['messages'] = [];
+			return $this->serializer->response($result, 200, [], false, true);
+		}
+
+		$childMessages = [];
+		foreach ($messages as $message) {
+			$childMessages[] = $message['id'];		// First put in parents ids for search
+		}
+		$childMessages = $repMessages->findMessagesCommentsSortedByDate($childMessages);
+
+		foreach ($childMessages as $key => $message) {
+			if (empty($message['userProfilePicture'])) {
+				$childMessages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
+			} else {
+				$childMessages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$message['userProfilePicture'];
+			}
+		}
+		foreach ($messages as $key => $message) {
+			$messages[$key]['children'] = [];
+			if (empty($message['userProfilePicture'])) {
+				$messages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
+			} else {
+				$messages[$key]['userProfilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$message['userProfilePicture'];
+			}
+
+			if (!empty($childMessages)) {
+				foreach ($childMessages as $childMessage) {
+					if ($childMessage['parentId'] == $message['id']) {
+						$messages[$key]['children'][] = $childMessage;
+					}
+				}
+			}
+		}
+
+		$result['messages'] = $messages;
+
+		return $this->serializer->response($result, 200, [], false, true);
+	}
+
+	/**
+	 * @param array $usersIds
+	 */
+	protected function getMainUsersDataByIds($usersIds) {
+		$usersRepository = $this->getDoctrine()->getRepository(Users::class);
+		$users = $usersRepository->findAllMainDataByIds($usersIds);
+		foreach ($users as &$user) {
+			if (empty($user['profilePicture'])) {
+				$user['profilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/defProfilePic.png';
+			} else {
+				$user['profilePicture'] = 'http://'.$_SERVER['HTTP_HOST'].'/Files/'.$user['profilePicture'];
+			}
+		}
+		return $users;
 	}
 }

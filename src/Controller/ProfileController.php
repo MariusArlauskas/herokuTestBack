@@ -45,17 +45,27 @@ class ProfileController extends AbstractController
     }
 
 	/**
-	 * @Route("/{id}", name="user_profile_data", methods={"GET"})
+	 * @Route("/{id}", name="user_profile_data", methods={"GET"}, requirements={"id"="\d+"})
 	 * @return Response
 	 */
 	public function getAction($id, $filter = true)
 	{
-		$result = $this->forward('App\Controller\EntityController\UsersController::getOneAction', [
+		return $this->forward('App\Controller\EntityController\UsersController::getOneAction', [
 			'id' => $id,
 			'filter' => $filter,
 		]);
+	}
 
-		return $result;
+	/**
+	 * @Route("/find", name="profile_find", methods={"POST"})
+	 * @param Request $request
+	 * @return Response
+	 */
+	public function findAction(Request $request)
+	{
+		return $this->forward('App\Controller\EntityController\UsersController::findUserByName', [
+			'request' => $request,
+		]);
 	}
 
 	/**
@@ -75,29 +85,37 @@ class ProfileController extends AbstractController
 	}
 
 	/**
-	 * @Route("/{id}/follows", name="user_profile_follows", methods={"GET"})
+	 * @Route("/{id}/follows", name="user_profile_follows", methods={"GET"}, requirements={"id"="\d+"})
 	 * @return Response
 	 */
 	public function getFollowsAction($id)
 	{
-		$result = $this->forward('App\Controller\EntityController\UsersController::getUsersFollows', [
+		return $this->forward('App\Controller\EntityController\UsersController::getUsersFollows', [
 			'id' => $id,
 		]);
-
-		return $result;
 	}
 
 	/**
-	 * @Route("/{id}/followers", name="user_profile_followers", methods={"GET"})
+	 * @Route("/{id}/followers", name="user_profile_followers", methods={"GET"}, requirements={"id"="\d+"})
 	 * @return Response
 	 */
 	public function getFollowersAction($id)
 	{
-		$result = $this->forward('App\Controller\EntityController\UsersController::getUsersFollowers', [
+		return $this->forward('App\Controller\EntityController\UsersController::getUsersFollowers', [
 			'id' => $id,
 		]);
+	}
 
-		return $result;
+	/**
+	 * @Route("/{id}/forum/page/{pageNr}", name="user_profile_get_forum", methods={"GET"}, requirements={"id"="\d+", "pageNr"="\d+"})
+	 * @return Response
+	 */
+	public function getForumAction($id, $pageNr)
+	{
+		return $this->forward('App\Controller\EntityController\ForumController::getAllAction', [
+			'pageNr' => $pageNr,
+			'userId' => $id,
+		]);
 	}
 
     /**

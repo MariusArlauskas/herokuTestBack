@@ -26,7 +26,7 @@ class InitSerializer {
 	/**
 	 * Returns a JSON response
 	 *
-	 * @param array|string $data
+	 * @param $data
 	 * @param int $status
 	 * @param array $headers
 	 * @param bool $serialize Need serializing 2nd

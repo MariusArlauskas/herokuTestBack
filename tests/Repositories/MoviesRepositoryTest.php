@@ -39,14 +39,14 @@ class MoviesRepositoryTest extends KernelTestCase {
 	{
 		$results = $this->entityManager
 			->getRepository(Movies::class)
-			->findByApiIdAndTypeWithUserStatuses(1, 5, 'mostPopular', 20, 0, [['name' => 'year', 'sort' => [1970, 2010]]])
+			->findByApiIdAndTypeWithUserStatuses(1, 5, 'mostPopular', 20, 0, [['name' => 'year', 'sort' => [2010, 2022]]])
 		;
 
 		$this->assertNotEmpty($results);
 		foreach ($results as $key => $value) {
 			if (!empty($lastKey)) {
-				$this->assertGreaterThanOrEqual(1970, $results[$key]->getReleaseDate()->format('Y'));
-				$this->assertLessThanOrEqual(2010, $results[$key]->getReleaseDate()->format('Y'));
+				$this->assertGreaterThanOrEqual(2010, $results[$key]->getReleaseDate()->format('Y'));
+				$this->assertLessThanOrEqual(2022, $results[$key]->getReleaseDate()->format('Y'));
 			}
 			$lastKey = $key;
 		}
@@ -80,7 +80,7 @@ class MoviesRepositoryTest extends KernelTestCase {
 	{
 		$results = $this->entityManager
 			->getRepository(Movies::class)
-			->findByApi(1, 'mostPopular', 20, 0, [['name' => 'year', 'sort' => [1970, 2010]]])
+			->findByApi(1, 'mostPopular', 20, 0, [['name' => 'year', 'sort' => [2010, 2021]]])
 		;
 
 		$this->assertNotEmpty($results);

@@ -20,7 +20,7 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 /**
  * Class MoviesController
- * @package App\Controller
+ * @package App\Controller\EntityController
  * @Route("/movies")
  */
 class MoviesController extends AbstractController
@@ -96,6 +96,10 @@ class MoviesController extends AbstractController
 			// Save movies
 			$em->flush();
 
+			foreach ($movies as $movie) {
+				$this->getAndSaveMovieCast($movie->getMovieId());
+			}
+
 			// Now check again to join with users liked movies list
 			$movies = $repMovies->findByApiIdAndTypeWithUserStatuses($apiId, $userId, $type, $limit, $offset, $filter );
 		}
@@ -108,6 +112,7 @@ class MoviesController extends AbstractController
 	 * @param string $type
 	 * @param int $pageNumber
 	 * @return JsonResponse|Response
+	 * @throws \Doctrine\DBAL\DBALException
 	 */
 	public function getMovies(Request $request, $type, $pageNumber){
 		$apiId = 1;
@@ -162,6 +167,10 @@ class MoviesController extends AbstractController
 			// Save movies
 			$em->flush();
 
+			foreach ($movies as $movie) {
+				$this->getAndSaveMovieCast($movie->getMovieId());
+			}
+
 			// Now check again to join with users liked movies list
 			$movies = $repMovies->findByApi($apiId, $type, $limit, $offset, $filter);
 		}
@@ -173,18 +182,13 @@ class MoviesController extends AbstractController
 	 * @Route("/{id}", name="movie_show_one", methods={"GET"}, requirements={"id"="\d+"})
 	 * @param int $id
 	 * @return JsonResponse
-	 * @throws ClientExceptionInterface
-	 * @throws ORMException
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
 	 */
 	public function getOneAction($id)
 	{
 		$apiId = 1;
 		$em = $this->getDoctrine()->getManager();
 		$repMovies = $em->getRepository(Movies::class);
-		$movie = $repMovies->findOneBy(['movieId' => $id]);
+		$movie = $repMovies->findOneByMovieId($id);
 		if (empty($movie)) { 	// Fetch from remote api
 			$movieApi = new TmdbApi($em);
 			$movie = $movieApi->getOneMovie($id)[0];
@@ -194,8 +198,10 @@ class MoviesController extends AbstractController
 			// Save movies
 			$em->flush();
 
+			$this->getAndSaveMovieCast($id);
+
 			// Now check again to join with users liked movies list
-			$movie = $repMovies->findOneBy(['movieId' => $id]);
+			$movie = $repMovies->findOneByMovieId($id);
 		}
 		$movie = $movie->toArray();
 		if ($this->isGranted("ROLE_USER") || $this->isGranted("ROLE_ADMIN")) {
@@ -212,31 +218,10 @@ class MoviesController extends AbstractController
 		return $this->serializer->response($movie, 200, [], false, true);
 	}
 
-	/** Fetches and inserts into db
-	 */
-	public function getOneFromApiAction($movieId, $apiId)
-	{
-		$em = $this->getDoctrine()->getManager();
-		$movieApi = new TmdbApi($em);
-		$movie = $movieApi->getOneMovie($movieId);
-		if (empty($movie)) {
-			return '';
-		}
-		$em->persist($movie);
-		// Save movies
-		$em->flush();
-
-		return $movie;
-	}
-
 	/**
 	 * @param int $userId
 	 * @return JsonResponse|Response
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
+	 * @throws \Doctrine\DBAL\DBALException
 	 */
 	public function getUsersMovieList($userId){
 		$apiId = 1;
@@ -249,21 +234,23 @@ class MoviesController extends AbstractController
 		}
 
 		$movieApi = new TmdbApi($em);
-		$change = false;
+		$change = [];
 		foreach ($movies as $movie) {
 			if (empty($movie->getId())) {
-				$change = true;
+				$change[] = $movie->getMovieId();
 				$movie = $movieApi->getOneMovie($movie->getMovieId());
 				$em->persist($movie[0]);
 			}
 		}
-		if ($change) {
+		if (!empty($change)) {
 			$em->flush();
 
-			// Now check again to join with users liked movies list
-			if ($change) {
-				$movies = $repMovies->findUsersMovieList($apiId, $userId);
+			foreach ($change as $id) {
+				$this->getAndSaveMovieCast($id);
 			}
+
+			// Now check again to join with users liked movies list
+			$movies = $repMovies->findUsersMovieList($apiId, $userId);
 		}
 
 		return $this->serializer->response($movies, 200, [], false, true, true);
@@ -275,11 +262,7 @@ class MoviesController extends AbstractController
 	 * @param int $type
 	 * @param int $userId
 	 * @return JsonResponse|Response
-	 * @throws ClientExceptionInterface
-	 * @throws ORMException
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
+	 * @throws \Doctrine\DBAL\DBALException
 	 */
 	public function getMostPopularMoviesInWeb($pageNumber, $type, $userId = 0){
 		$em = $this->getDoctrine()->getManager();
@@ -287,21 +270,23 @@ class MoviesController extends AbstractController
 		$movies = $repMovies->findMostPopularInWeb(20, $pageNumber * 20 - 20, $userId, $type);
 
 		$movieApi = new TmdbApi($em);
-		$change = false;
+		$change = [];
 		foreach ($movies as $movie) {
 			if (empty($movie->getId())) {
-				$change = true;
+				$change[] = $movie->getMovieId();
 				$movie = $movieApi->getOneMovie($movie->getMovieId());
 				$em->persist($movie[0]);
 			}
 		}
-		if ($change) {
+		if (!empty($change)) {
 			$em->flush();
 
-			// Now fetch filled list
-			if ($change) {
-				$movies = $repMovies->findMostPopularInWeb(20, $pageNumber * 20 - 20, $userId, $type);
+			foreach ($change as $id) {
+				$this->getAndSaveMovieCast($id);
 			}
+
+			// Now fetch filled list
+			$movies = $repMovies->findMostPopularInWeb(20, $pageNumber * 20 - 20, $userId, $type);
 		}
 
 		return $this->serializer->response($movies, 200, [], false, true, true);
@@ -322,18 +307,11 @@ class MoviesController extends AbstractController
 	}
 
 	/**
-	 * @Route("/find", name="find_movie", methods={"POST"})
-	 * @param int $userId
+	 * @Route("/find", name="find_people", methods={"POST"})
+	 * @param Request $request
 	 * @return JsonResponse|Response
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
 	public function findMovie(Request $request){
-		$apiId = 1;
-
 		// Assingning data from request and removing unnecessary symbols
 		$parametersAsArray = [];
 		if ($content = $request->getContent()) {
@@ -348,12 +326,31 @@ class MoviesController extends AbstractController
 
 		$em = $this->getDoctrine()->getManager();
 		$movieApi = new TmdbApi($em);
-		$change = false;
 		$movies = $movieApi->searchMovie($search);
 		if (empty($movies)) {
 			return $this->serializer->response("Nothing found!", Response::HTTP_NOT_FOUND);
 		}
 
 		return $this->serializer->response($movies, 200, [], false, true, true);
+	}
+
+	protected function getAndSaveMovieCast($movieId) {
+		$em = $this->getDoctrine()->getManager();
+		$repMovies = $em->getRepository(Movies::class);
+		$movieApi = new TmdbApi($em);
+
+		$credits = $movieApi->getMovieCredits($movieId);
+		$dataToSave = [];
+		foreach ($credits->crew as $crew) {
+			$tempEl = [];
+			if (isset($crew->profile_path)) {
+				$tempEl['profile_path'] = 'https://image.tmdb.org/t/p/w600_and_h900_bestv2'.$crew->profile_path;
+			}
+			$tempEl['name'] = $crew->name ?? '';
+			$tempEl['id'] = $crew->id ?? '';
+			$tempEl['job'] = $crew->job ?? '';
+			$dataToSave[] = $tempEl;
+		}
+		$repMovies->saveMovieCast($movieId, $dataToSave);
 	}
 }

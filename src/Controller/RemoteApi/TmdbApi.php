@@ -5,6 +5,7 @@ namespace App\Controller\RemoteApi;
 use App\Entity\Apis;
 use App\Entity\Genres;
 use App\Entity\Movies;
+use App\Entity\Person;
 use App\Repository\GenresRepository;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -53,11 +54,6 @@ class TmdbApi extends AbstractController
 
 	/**
 	 * @return mixed
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
     protected function mostPopularMovies($page, $nr) {
         $client = HttpClient::create();
@@ -66,11 +62,6 @@ class TmdbApi extends AbstractController
 
 	/**
 	 * @return mixed
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
 	protected function topRatedMovies($page, $nr) {
 		$client = HttpClient::create();
@@ -79,11 +70,6 @@ class TmdbApi extends AbstractController
 
 	/**
 	 * @return mixed
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
 	protected function upcomingMovies($page, $nr) {
 		$client = HttpClient::create();
@@ -92,11 +78,6 @@ class TmdbApi extends AbstractController
 
 	/**
 	 * @return mixed
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
 	protected function latestMovies($page, $nr) {
 		$client = HttpClient::create();
@@ -105,11 +86,6 @@ class TmdbApi extends AbstractController
 
 	/**
 	 * @return mixed
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
 	protected function nowPlayingMovies($page, $nr) {
 		$client = HttpClient::create();
@@ -118,10 +94,6 @@ class TmdbApi extends AbstractController
 
     /**
      * @return mixed
-     * @throws ClientExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws TransportExceptionInterface
      */
     public function getMovieGenresFromApi() {
         $client = HttpClient::create();
@@ -129,13 +101,8 @@ class TmdbApi extends AbstractController
     }
 
 	/**
-	 * @param $movieId
+	 * @param int $movieId
 	 * @return mixed
-	 * @throws ClientExceptionInterface
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
-	 * @throws ORMException
 	 */
     public function getOneMovie($movieId) {
     	$client = HttpClient::create();
@@ -143,13 +110,27 @@ class TmdbApi extends AbstractController
 	}
 
 	/**
-	 * @param $search
+	 * @param int $movieId
+	 * @return mixed
+	 */
+    public function getMovieCredits($movieId) {
+    	$client = HttpClient::create();
+    	$response = $client->request('GET', 'https://api.themoviedb.org/3/movie/'.$movieId.'/credits?api_key='.$this->apiKey.'&language=en-US')->getContent();
+		return json_decode($response);
+	}
+
+	/**
+	 * @param int $personId
+	 * @return mixed
+	 */
+	public function getOnePerson($personId) {
+		$client = HttpClient::create();
+		return $this->returnPeople($client->request('GET', 'https://api.themoviedb.org/3/person/'.$personId.'?api_key='.$this->apiKey.'&language=en-US')->getContent());
+	}
+
+	/**
+	 * @param string $search
 	 * @return array
-	 * @throws ClientExceptionInterface
-	 * @throws ORMException
-	 * @throws RedirectionExceptionInterface
-	 * @throws ServerExceptionInterface
-	 * @throws TransportExceptionInterface
 	 */
 	public function searchMovie($search) {
 		$client = HttpClient::create();
@@ -157,11 +138,29 @@ class TmdbApi extends AbstractController
 	}
 
 	/**
-	 * @param $movies
+	 * @param string $search
+	 * @return array
+	 */
+	public function searchPeople($search) {
+		$client = HttpClient::create();
+		return $this->returnPeople($client->request('GET', 'https://api.themoviedb.org/3/search/person?api_key='.$this->apiKey.'&language=en-US&query='.htmlentities($search))->getContent(), true);
+	}
+
+	/**
+	 * @param integer $id
+	 * @return array
+	 */
+	public function getPersonMovies($id) {
+		$client = HttpClient::create();
+		$response = $client->request('GET', 'https://api.themoviedb.org/3/person/'.intval($id).'/movie_credits?api_key='.$this->apiKey.'&language=en-US')->getContent();
+		return json_decode($response);
+	}
+
+	/**
+	 * @param string $movies
 	 * @param int $type
 	 * @param int $nr
 	 * @return array
-	 * @throws ORMException
 	 */
     protected function returnMovies($movies, $type = 0, $nr = 0) {
 		$movies = json_decode($movies);
@@ -187,7 +186,18 @@ class TmdbApi extends AbstractController
 			$temp = new Movies();
 			$temp->setApiId($this->apiId);
 			$temp->setMovieId($movie->id);
-			$temp->setRating($movie->vote_average);
+
+			if (isset($movie->vote_average)) {
+				$temp->setRating($movie->vote_average);
+				$repMovies = $this->em->getRepository(Movies::class);
+				$movieScore = $repMovies->getScoreByMovieId($movie->id);
+				if (!empty($movieScore)) {
+					$temp->setRating(
+						round(($movie->vote_count * $movie->vote_average + $movieScore['voteCount'] * $movieScore['voteAverage'])/($movieScore['voteCount'] + $movie->vote_count), 1)
+					);
+				}
+			}
+
 			$temp->setOriginalTitle($movie->original_title);
 			if (!empty($movie->poster_path)) {
 				$temp->setPosterPath('https://image.tmdb.org/t/p/w600_and_h900_bestv2'.$movie->poster_path);
@@ -214,6 +224,65 @@ class TmdbApi extends AbstractController
 		}
 
 		return $moviesReturn;
+	}
+
+	/**
+	 * @param $movies
+	 * @param int $type
+	 * @param int $nr
+	 * @return array
+	 * @throws ORMException
+	 */
+	protected function returnPeople($people, $dontSave = false) {
+		$people = json_decode($people);
+		if (empty($people->results)) {	// Then its only one person
+			$people->results[0] = $people;
+		}
+		if ($dontSave) {
+			$returnArr = [];
+			foreach ($people->results as $person) {
+				if (!empty($person->profile_path)) {
+					$person->profile_path = 'https://image.tmdb.org/t/p/w600_and_h900_bestv2'.$person->profile_path;
+				}
+				$returnArr[] = $person;
+			}
+			return $returnArr;
+		}
+
+		$peopleReturn = [];
+		foreach ($people->results as $person) {
+			// Data to person object for saving
+			$temp = new Person();
+			$temp->setApiId($this->apiId);
+			$temp->setPersonId($person->id);
+			if (!empty($person->birthday)) {
+				$temp->setBirthday(\DateTime::createFromFormat('Y-m-d', $person->birthday));
+			}
+			if (!empty($person->deathday)) {
+				$temp->setDeathday(\DateTime::createFromFormat('Y-m-d', $person->deathday));
+			}
+			if (!empty($person->gender)) {
+				$temp->setGender($person->gender);
+			}
+			if (!empty($person->known_for_department)) {
+				$temp->setKnownFor($person->known_for_department);
+			}
+			if (!empty($person->name)) {
+				$temp->setName($person->name);
+			}
+			if (!empty($person->place_of_birth)) {
+				$temp->setBirthPlace($person->place_of_birth);
+			}
+			if (!empty($person->profile_path)) {
+				$temp->setPicture('https://image.tmdb.org/t/p/w600_and_h900_bestv2'.$person->profile_path);
+			}
+			if (!empty($person->biography)) {
+				$temp->setBiography($person->biography);
+			}
+			$peopleReturn[] = $temp;
+		}
+
+		return $peopleReturn;
 	}
 
 	/**

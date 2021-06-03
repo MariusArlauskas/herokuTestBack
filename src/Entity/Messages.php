@@ -42,6 +42,11 @@ class Messages
      */
     private $parentId;
 
+	/**
+	 * @ORM\Column(type="integer", nullable=true)
+	 */
+	private $forumId;
+
     /**
      * @ORM\Column(type="integer", nullable=true)
      */
@@ -128,6 +133,18 @@ class Messages
     public function setParentId(?int $parentId): self
     {
         $this->parentId = $parentId;
+
+        return $this;
+    }
+
+    public function getForumId(): ?int
+    {
+        return $this->forumId;
+    }
+
+    public function setForumId(?int $forumId): self
+    {
+        $this->forumId = $forumId;
 
         return $this;
     }

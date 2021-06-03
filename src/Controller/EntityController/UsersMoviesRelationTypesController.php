@@ -9,7 +9,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * Class UsersMoviesRelationTypesController
- * @package App\Controller
+ * @package App\Controller\EntityController
  * @Route("/lists/types")
  */
 class UsersMoviesRelationTypesController extends AbstractController
